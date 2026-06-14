@@ -24,8 +24,6 @@ public class ExampleModClient {
 
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
-        // Some client setup code
-        ExampleMod.LOGGER.info("HELLO FROM CLIENT SETUP");
-        ExampleMod.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+
     }
 }

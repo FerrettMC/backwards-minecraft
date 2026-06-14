@@ -1,5 +1,10 @@
 package com.example.examplemod;
 
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -86,4 +91,93 @@ public class ExampleMod {
         // Do something when the server starts
 
     }
+
+    // REMOVE BEFORE UPLOADING FINAL MOD!!!!!!
+    @SubscribeEvent
+    public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+
+        net.minecraft.server.MinecraftServer server = player.level().getServer();
+
+        final int[] ticksLeft = {15};
+        final java.util.function.Consumer<net.neoforged.neoforge.event.tick.ServerTickEvent.Post>[] killListenerRef = new java.util.function.Consumer[1];
+
+        killListenerRef[0] = (net.neoforged.neoforge.event.tick.ServerTickEvent.Post tickEvent) -> {
+            if (--ticksLeft[0] > 0) return;
+            NeoForge.EVENT_BUS.unregister(killListenerRef[0]);
+
+            // Save everything BEFORE kill
+            boolean wasFlying = player.getAbilities().flying;
+            boolean canFly = player.getAbilities().mayfly;
+            float health = player.getHealth();
+            int food = player.getFoodData().getFoodLevel();
+            float saturation = player.getFoodData().getSaturationLevel();
+            int xpLevel = player.experienceLevel;
+            float xpProgress = player.experienceProgress;
+            int totalXp = player.totalExperience;
+            double x = player.getX();
+            double y = player.getY();
+            double z = player.getZ();
+            float yRot = player.getYRot();
+            float xRot = player.getXRot();
+            net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) player.level();
+
+            net.minecraft.world.item.ItemStack[] inventory = new net.minecraft.world.item.ItemStack[player.getInventory().getContainerSize()];
+            for (int i = 0; i < inventory.length; i++) {
+                inventory[i] = player.getInventory().getItem(i).copy();
+            }
+
+            var effects = new java.util.ArrayList<>(player.getActiveEffects());
+
+            // Clear inventory BEFORE kill so nothing drops
+            player.getInventory().clearContent();
+            player.hurt(player.damageSources().genericKill(), Float.MAX_VALUE);
+
+            // Listen for when player clicks respawn button
+            final java.util.function.Consumer<net.neoforged.neoforge.event.entity.player.PlayerEvent.Clone>[] respawnEventRef = new java.util.function.Consumer[1];
+
+            respawnEventRef[0] = (net.neoforged.neoforge.event.entity.player.PlayerEvent.Clone respawnEvent) -> {
+                if (!respawnEvent.isWasDeath()) return;
+                NeoForge.EVENT_BUS.unregister(respawnEventRef[0]);
+
+                ServerPlayer r = (ServerPlayer) respawnEvent.getEntity();
+
+                // Wait a few ticks after respawn before restoring
+                final int[] restoreTicks = {5};
+                final java.util.function.Consumer<net.neoforged.neoforge.event.tick.ServerTickEvent.Post>[] restoreListenerRef = new java.util.function.Consumer[1];
+
+                restoreListenerRef[0] = (net.neoforged.neoforge.event.tick.ServerTickEvent.Post restoreEvent) -> {
+                    if (--restoreTicks[0] > 0) return;
+                    NeoForge.EVENT_BUS.unregister(restoreListenerRef[0]);
+
+                    r.setHealth(health);
+                    r.getFoodData().setFoodLevel(food);
+                    r.getFoodData().setSaturation(saturation);
+                    r.setExperienceLevels(xpLevel);
+                    r.setExperiencePoints((int)(xpProgress * r.getXpNeededForNextLevel()));
+                    r.totalExperience = totalXp;
+                    r.getAbilities().flying = wasFlying;
+                    r.getAbilities().mayfly = canFly;
+                    r.onUpdateAbilities();
+
+                    r.getInventory().clearContent();
+                    for (int i = 0; i < inventory.length; i++) {
+                        r.getInventory().setItem(i, inventory[i]);
+                    }
+
+                    r.removeAllEffects();
+                    for (var effect : effects) {
+                        r.addEffect(effect);
+                    }
+
+                    r.teleportTo(level, x, y, z, java.util.Set.of(), yRot, xRot, true);
+                    r.inventoryMenu.broadcastChanges();
+                };
+                NeoForge.EVENT_BUS.addListener(restoreListenerRef[0]);
+            };
+            NeoForge.EVENT_BUS.addListener(respawnEventRef[0]);
+        };
+        NeoForge.EVENT_BUS.addListener(killListenerRef[0]);
+    }
+
 }
