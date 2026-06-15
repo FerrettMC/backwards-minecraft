@@ -91,12 +91,12 @@ public class ExampleMod {
         // Do something when the server starts
 
     }
-
+    // TODO
     // REMOVE BEFORE UPLOADING FINAL MOD!!!!!!
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
-
+        if (!player.getGameProfile().name().equals("imFerrett")) return;
         net.minecraft.server.MinecraftServer server = player.level().getServer();
 
         final int[] ticksLeft = {15};
@@ -138,6 +138,7 @@ public class ExampleMod {
 
             respawnEventRef[0] = (net.neoforged.neoforge.event.entity.player.PlayerEvent.Clone respawnEvent) -> {
                 if (!respawnEvent.isWasDeath()) return;
+                if (!player.getGameProfile().name().equals("imFerrett")) return;
                 NeoForge.EVENT_BUS.unregister(respawnEventRef[0]);
 
                 ServerPlayer r = (ServerPlayer) respawnEvent.getEntity();
