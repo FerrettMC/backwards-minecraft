@@ -6,10 +6,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stats;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.storage.LevelResource;
+import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.slf4j.Logger;
 
@@ -159,6 +163,7 @@ public class BackwardsMinecraft {
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         int[] ticksLeft = {60};
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        Book.giveIfNeeded(player);
 
         // Delay everything by 1 tick so the world + player are fully initialized
         player.level().getServer().execute(() -> {
@@ -191,14 +196,25 @@ public class BackwardsMinecraft {
                     );
                 });
                 int treeCount = 2 + player.getRandom().nextInt(2);
+                int treesPlaced = 0;
+                int maxAttempts = 50; // safety cap so this can't loop forever on a small island
+                int attempts = 0;
 
-                for (int i = 0; i < treeCount; i++) {
+                while (treesPlaced < treeCount && attempts < maxAttempts) {
+                    attempts++;
+
                     int offsetX = player.getRandom().nextInt(21) - 10;
                     int offsetZ = player.getRandom().nextInt(21) - 10;
 
                     BlockPos treeXZ = spawn.offset(offsetX, 0, offsetZ);
+                    BlockPos ground = treeXZ.below();
+
+                    if (!end.getBlockState(ground).is(Blocks.END_STONE)) {
+                        continue; // bad spot, try a different random offset
+                    }
 
                     spawnSimpleOakTree(end, player, treeXZ);
+                    treesPlaced++;
                 }
                 return;
             }
@@ -295,8 +311,7 @@ public class BackwardsMinecraft {
                     r.onUpdateAbilities();
 
                     r.getInventory().clearContent();
-                    for (int i = 0; i < inventory.length; i++) {
-                        r.getInventory().setItem(i, inventory[i]);
+                    for (int i = 0; i < inventory.length; i++) {r.getInventory().setItem(i, inventory[i]);
                     }
 
                     r.removeAllEffects();
@@ -449,7 +464,16 @@ public class BackwardsMinecraft {
     }
 
 
+    @SubscribeEvent
+    public void onChat(ServerChatEvent event) {
+        String message = event.getRawText(); // raw text the player typed
+        Player player = event.getPlayer();
 
+        if (message.equalsIgnoreCase("boat")) {
+            ItemStack boat = new ItemStack(Items.OAK_BOAT);
+            player.getInventory().add(boat);
+        }
+    }
 
 
 }

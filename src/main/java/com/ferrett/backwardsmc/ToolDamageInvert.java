@@ -48,7 +48,7 @@ public class ToolDamageInvert {
         if (!isAxe && !isSword) return;
 
         if (isSword) {
-            if (path.startsWith("wooden_")) { vanillaBase = WOOD_SWORD; invertedBase = NETHERITE_SWORD; }
+            if (path.startsWith("wooden_")) { vanillaBase = WOOD_SWORD; invertedBase = 20.0f; }
             else if (path.startsWith("stone_")) { vanillaBase = STONE_SWORD; invertedBase = DIAMOND_SWORD; }
             else if (path.startsWith("iron_")) { vanillaBase = IRON_SWORD; invertedBase = IRON_SWORD; }
             else if (path.startsWith("golden_")) { vanillaBase = GOLD_SWORD; invertedBase = WOOD_SWORD; }

@@ -6,7 +6,12 @@ import net.minecraft.world.entity.player.Player;
 
 public class HungerDepleteRestore {
 
-    private static final int CHECK_INTERVAL_TICKS = 100; // every 5 seconds
+    // Resting drains slowly: check every 10 seconds, lose 1 point each time
+    private static final int REST_INTERVAL_TICKS = 200; // 10 seconds
+
+    // Sprinting restores quickly: check every 1 second, gain 1 point each time
+    private static final int SPRINT_INTERVAL_TICKS = 20; // 1 second
+
     private static final double STILL_THRESHOLD = 0.01;
 
     @SubscribeEvent
@@ -14,25 +19,24 @@ public class HungerDepleteRestore {
         Player player = event.getEntity();
         if (player.level().isClientSide()) return;
 
-        // Counteract vanilla's sprint exhaustion every tick, since there's
-        // no getter to read/zero it - we just push it back down continuously.
-        if (player.isSprinting()) {
+        boolean isSprinting = player.isSprinting();
+
+        // Counteract vanilla's sprint exhaustion every tick
+        if (isSprinting) {
             player.getFoodData().addExhaustion(-0.15f);
         }
-
-        if (player.tickCount % CHECK_INTERVAL_TICKS != 0) return;
 
         double dx = player.getDeltaMovement().x;
         double dz = player.getDeltaMovement().z;
         double horizontalSpeed = Math.sqrt(dx * dx + dz * dz);
+        boolean isResting = player.onGround() && horizontalSpeed < STILL_THRESHOLD && !isSprinting;
 
-        boolean isResting = player.onGround() && horizontalSpeed < STILL_THRESHOLD && !player.isSprinting();
-        boolean isSprinting = player.isSprinting();
-
-        if (isResting) {
+        if (isResting && player.tickCount % REST_INTERVAL_TICKS == 0) {
             int current = player.getFoodData().getFoodLevel();
             player.getFoodData().setFoodLevel(Math.max(0, current - 1));
-        } else if (isSprinting) {
+        }
+
+        if (isSprinting && player.tickCount % SPRINT_INTERVAL_TICKS == 0) {
             int current = player.getFoodData().getFoodLevel();
             player.getFoodData().setFoodLevel(Math.min(20, current + 1));
         }

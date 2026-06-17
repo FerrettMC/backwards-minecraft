@@ -97,19 +97,43 @@ public class DirtPortal {
     private static void teleportPlayerToOverworld(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
         ServerLevel overworld = server.getLevel(Level.OVERWORLD);
-
         if (overworld == null) return;
 
         int x = 0;
-        int y = 200;
         int z = 0;
-        for (int i = 200; i > 0; i--) {
-            if (((ServerLevel) player.level()).getBlockState(new BlockPos(x, i, z)).is(Blocks.AIR)) {
-                continue;
-            } else {
-                y = i + 3;
-                break;
+        int y = 200;
+
+        int maxRetries = 20; // safety cap
+        for (int retry = 0; retry < maxRetries; retry++) {
+            boolean foundGround = false;
+            BlockPos foundPos = null;
+
+            for (int i = 200; i > 0; i--) {
+                BlockPos pos = new BlockPos(x, i, z);
+                if (overworld.getBlockState(pos).is(Blocks.AIR)) {
+                    continue;
+                } else {
+                    foundPos = pos;
+                    foundGround = true;
+                    break;
+                }
             }
+
+            if (!foundGround) {
+                // No solid block found at all in this column; shift and retry
+                x += 100;
+                continue;
+            }
+
+            if (overworld.getBlockState(foundPos).is(Blocks.WATER)) {
+                // Landed on water - shift x and try a fresh column
+                x += 100;
+                continue;
+            }
+
+            // Found solid, non-water ground - use it
+            y = foundPos.getY() + 3;
+            break;
         }
 
         player.teleportTo(

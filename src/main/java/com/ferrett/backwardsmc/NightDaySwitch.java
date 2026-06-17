@@ -1,5 +1,6 @@
 package com.ferrett.backwardsmc;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.skeleton.Skeleton;
@@ -16,45 +17,44 @@ public class NightDaySwitch {
     @SubscribeEvent
     public void onMobSpawn(MobSpawnEvent.PositionCheck event) {
         if (!(event.getLevel() instanceof ServerLevel server)) return;
+        if (!(event.getEntity() instanceof net.minecraft.world.entity.monster.Monster)) return;
+
+        BlockPos pos = event.getEntity().blockPosition();
+        boolean inOpenAir = server.canSeeSky(pos);
+
+        // Caves / enclosed spaces: leave vanilla behavior alone entirely
+        if (!inOpenAir) return;
 
         boolean isDay = server.getSkyDarken() < 4;
         boolean isNight = !isDay;
 
-        // Only affect hostile mobs
-        if (!(event.getEntity() instanceof net.minecraft.world.entity.monster.Monster)) return;
-
-        // NIGHT behaves like DAY → block hostile spawns
         if (isNight) {
             event.setResult(MobSpawnEvent.PositionCheck.Result.FAIL);
             return;
         }
-
-        // DAY behaves like NIGHT → force allow spawn
         event.setResult(MobSpawnEvent.PositionCheck.Result.SUCCEED);
     }
-
 
     @SubscribeEvent
     public void onSpawnPlacement(MobSpawnEvent.SpawnPlacementCheck event) {
         var level = event.getLevel();
         if (!(level instanceof ServerLevel server)) return;
+        if (event.getEntityType().getCategory().isFriendly()) return;
+
+        BlockPos pos = event.getPos();
+        boolean inOpenAir = server.canSeeSky(pos);
+
+        // Caves / enclosed spaces: leave vanilla behavior alone entirely
+        if (!inOpenAir) return;
 
         boolean isDay = server.getSkyDarken() < 4;
         boolean isNight = !isDay;
 
-
-        // Only affect hostile mobs
-        if (!event.getEntityType().getCategory().isFriendly()) {
-
-            // NIGHT behaves like DAY → block hostile spawns
-            if (isNight) {
-                event.setResult(MobSpawnEvent.SpawnPlacementCheck.Result.FAIL);
-                return;
-            }
-
-            // DAY behaves like NIGHT → force allow spawn even in bright light
-            event.setResult(MobSpawnEvent.SpawnPlacementCheck.Result.SUCCEED);
+        if (isNight) {
+            event.setResult(MobSpawnEvent.SpawnPlacementCheck.Result.FAIL);
+            return;
         }
+        event.setResult(MobSpawnEvent.SpawnPlacementCheck.Result.SUCCEED);
     }
 
 
